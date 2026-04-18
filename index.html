@@ -38,7 +38,6 @@
             z-index: 1;
             pointer-events: none;
         }
-        /* Часы (только часы и минуты) */
         .sky-clock {
             position: fixed;
             top: 6%;
@@ -74,7 +73,6 @@
             .sky-clock { top: 4%; }
         }
         @media (max-width: 480px) { .time { font-size: 1.6rem; } }
-        /* Музыкальный плеер */
         .music-player {
             position: fixed;
             top: 20px;
@@ -124,7 +122,6 @@
         }
         .menu-icon i { font-size: 20px; color: white; }
         .menu-icon:hover { background: rgba(80,80,100,0.8); transform: scale(1.04); }
-        /* Модальные окна */
         .modal {
             position: fixed;
             top: 0;
@@ -214,7 +211,7 @@
             border-radius: 20px;
             border: none;
         }
-        .hidden-youtube {
+        .hidden-player {
             position: fixed;
             bottom: -100%;
             left: -100%;
@@ -252,14 +249,12 @@
 </head>
 <body>
 
-<!-- Фоновые изображения (утро, день, вечер, ночь) -->
 <div id="bgMorning" class="bg-image" style="background-image: url('https://cdn.jsdelivr.net/gh/MahnachIvan-dev/-footage@main/utro.png');"></div>
 <div id="bgDay" class="bg-image" style="background-image: url('https://cdn.jsdelivr.net/gh/MahnachIvan-dev/-footage@main/day.png');"></div>
 <div id="bgEvening" class="bg-image" style="background-image: url('https://cdn.jsdelivr.net/gh/MahnachIvan-dev/-footage@main/evning.png');"></div>
 <div id="bgNight" class="bg-image" style="background-image: url('https://cdn.jsdelivr.net/gh/MahnachIvan-dev/-footage@main/night.png');"></div>
 <div class="ambient-overlay"></div>
 
-<!-- Часы -->
 <div class="sky-clock">
     <div class="digital-clock">
         <div class="time" id="liveTime">--:--</div>
@@ -267,7 +262,6 @@
     </div>
 </div>
 
-<!-- Музыкальное меню -->
 <div class="music-player">
     <div class="note-btn" id="noteButton">
         <i class="fas fa-music"></i>
@@ -280,7 +274,6 @@
     </div>
 </div>
 
-<!-- Модалка Spotify -->
 <div id="spotifyModal" class="modal">
     <div class="modal-content large">
         <div class="close-modal">&times;</div>
@@ -292,7 +285,6 @@
     </div>
 </div>
 
-<!-- Модалка Radio Record -->
 <div id="recordModal" class="modal">
     <div class="modal-content radio">
         <div class="close-modal">&times;</div>
@@ -305,7 +297,6 @@
     </div>
 </div>
 
-<!-- Модалка загрузки музыки -->
 <div id="uploadModal" class="modal">
     <div class="modal-content">
         <div class="close-modal">&times;</div>
@@ -323,17 +314,14 @@
     </div>
 </div>
 
-<!-- Скрытый iframe YouTube Lo-Fi стрим (ваша ссылка) - запускается при загрузке, но без звука -->
-<iframe id="lofiStream" class="hidden-youtube" src="https://www.youtube.com/embed/jXAEIWcGXwE?autoplay=1&mute=1&loop=1&playlist=jXAEIWcGXwE&controls=0&disablekb=1" allow="autoplay; encrypted-media" frameborder="0"></iframe>
+<audio id="lofiAudio" loop preload="auto" style="display: none;"></audio>
 
-<!-- Статус Lo-Fi -->
 <div id="lofiStatus" class="lofi-status">
-    <i class="fas fa-headphones"></i> <span id="lofiStatusText">🎧 Lo-Fi стрим готов. Нажмите на иконку наушников, чтобы включить звук</span>
+    <i class="fas fa-headphones"></i> <span id="lofiStatusText">🎧 Lo-Fi стрим запускается...</span>
 </div>
 
 <script>
     (function(){
-        // ----- Фон по времени суток -----
         const backgrounds = {
             morning: document.getElementById('bgMorning'),
             day: document.getElementById('bgDay'),
@@ -360,7 +348,6 @@
         updateBackgroundByTime();
         setInterval(updateBackgroundByTime, 60000);
 
-        // ----- Часы (часы и минуты) -----
         const timeEl = document.getElementById('liveTime');
         const dateEl = document.getElementById('liveDate');
         function updateClock(){
@@ -381,11 +368,14 @@
             if (currentMinutes !== newMinutes) updateClock();
         }, 1000);
 
-        // ----- Lo-Fi управление -----
-        const lofiIframe = document.getElementById('lofiStream');
-        let lofiMuted = true;
+        const lofiAudio = document.getElementById('lofiAudio');
+        let lofiPlaying = false;
+        let ytPlayer = null;
+        let useYT = false;
         const statusDiv = document.getElementById('lofiStatus');
         const statusText = document.getElementById('lofiStatusText');
+        
+        const LOFI_MP3_URL = "https://stream.recordradio.ru/lofi-256.mp3";
         
         function showLofiStatus(message, isTemporary = true) {
             statusText.innerHTML = message;
@@ -395,36 +385,92 @@
             }
         }
         
-        // Показываем приветственное сообщение при загрузке
+        function startMp3Stream() {
+            lofiAudio.src = LOFI_MP3_URL;
+            lofiAudio.loop = true;
+            lofiAudio.volume = 0.6;
+            lofiAudio.play().then(() => {
+                lofiPlaying = true;
+                showLofiStatus('🎧 Lo-Fi стрим играет', true);
+            }).catch(err => {
+                console.log("MP3 autoplay blocked, fallback to YouTube", err);
+                startYouTubeStream();
+            });
+        }
         
+        function startYouTubeStream() {
+            if (useYT) return;
+            useYT = true;
+            const tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            const firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+            
+            window.onYouTubeIframeAPIReady = function() {
+                const container = document.createElement('div');
+                container.style.position = 'fixed';
+                container.style.bottom = '-100%';
+                container.style.left = '-100%';
+                container.style.width = '1px';
+                container.style.height = '1px';
+                container.style.opacity = '0';
+                document.body.appendChild(container);
+                
+                ytPlayer = new YT.Player(container, {
+                    height: '1',
+                    width: '1',
+                    videoId: 'jXAEIWcGXwE',
+                    playerVars: {
+                        'autoplay': 1,
+                        'mute': 0,
+                        'loop': 1,
+                        'playlist': 'jXAEIWcGXwE',
+                        'controls': 0,
+                        'disablekb': 1,
+                        'fs': 0
+                    },
+                    events: {
+                        'onReady': function(event) {
+                            event.target.playVideo();
+                            lofiPlaying = true;
+                            showLofiStatus('🎧 Lo-Fi стрим (YouTube) играет', true);
+                        },
+                        'onError': function() {
+                            showLofiStatus('⚠️ Не удалось запустить стрим', false);
+                        }
+                    }
+                });
+            };
+        }
         
-        function toggleLofiSound() {
-            if (lofiMuted) {
-                // Включаем звук: меняем src на unmute
-                const currentSrc = lofiIframe.src;
-                if (currentSrc.includes('mute=1')) {
-                    lofiIframe.src = currentSrc.replace('mute=1', 'mute=0');
-                } else if (currentSrc.includes('autoplay=1')) {
-                    lofiIframe.src = currentSrc.replace('autoplay=1', 'autoplay=1&mute=0');
+        function toggleLofi() {
+            if (useYT && ytPlayer) {
+                if (lofiPlaying) {
+                    ytPlayer.pauseVideo();
+                    lofiPlaying = false;
+                    showLofiStatus('🔇 Lo-Fi на паузе', true);
                 } else {
-                    lofiIframe.src = "https://www.youtube.com/live/jXAEIWcGXwE?si=lwCon36MwwwaV2-g";
+                    ytPlayer.playVideo();
+                    lofiPlaying = true;
+                    showLofiStatus('🔊 Lo-Fi возобновлён', true);
                 }
-                lofiMuted = false;
-                showLofiStatus('🔊 Lo-Fi звук включён', true);
             } else {
-                // Выключаем звук
-                const currentSrc = lofiIframe.src;
-                if (currentSrc.includes('mute=0')) {
-                    lofiIframe.src = currentSrc.replace('mute=0', 'mute=1');
+                if (lofiPlaying) {
+                    lofiAudio.pause();
+                    lofiPlaying = false;
+                    showLofiStatus('🔇 Lo-Fi на паузе', true);
                 } else {
-                    lofiIframe.src = "https://www.youtube.com/live/jXAEIWcGXwE?si=lwCon36MwwwaV2-g";
+                    lofiAudio.play().catch(e => {
+                        if (!useYT) startYouTubeStream();
+                    });
+                    lofiPlaying = true;
+                    showLofiStatus('🔊 Lo-Fi играет', true);
                 }
-                lofiMuted = true;
-                showLofiStatus('🔇 Lo-Fi звук выключен', true);
             }
         }
         
-        // ----- Radio Record -----
+        startMp3Stream();
+        
         const stations = [
             "Record", "Russian Mix", "Хиты всех времен", "Сказки MC V", "На шашлыки!", "Megamix",
             "Deep", "House", "Techno", "Trance", "Drum&Bass", "Chillout", "Lounge", "Pirate Station"
@@ -456,7 +502,6 @@
             });
         }
         
-        // ----- Загрузка музыки -----
         let currentAudio = null;
         let uploadedAudio = null;
         let uploadedFileName = '';
@@ -515,7 +560,6 @@
             });
         }
         
-        // ----- UI плеера -----
         const noteBtn = document.getElementById('noteButton');
         const menu = document.getElementById('musicMenu');
         const modals = {
@@ -542,7 +586,7 @@
                 e.stopPropagation();
                 const action = icon.dataset.action;
                 if (action === 'lofi') {
-                    toggleLofiSound();
+                    toggleLofi();
                     menu.classList.remove('open');
                     noteBtn.classList.remove('rotated');
                     return;
@@ -568,10 +612,8 @@
             modal.addEventListener('click', (e) => { if(e.target === modal) closeAllModals(); });
         });
         
-        // Запуск
         buildStationList();
         initUpload();
-        // Lo-Fi стрим уже загружен с muted, пользователь может включить звук кнопкой
     })();
 </script>
 </body>
