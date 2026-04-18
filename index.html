@@ -15,6 +15,15 @@
             width: 100vw;
             color: white;
         }
+        .focusable:focus-visible,
+        .menu-icon:focus-visible,
+        .station-item:focus-visible,
+        .note-btn:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.8), 0 0 0 6px rgba(0,0,0,0.3);
+            transform: scale(1.05);
+            transition: all 0.1s ease;
+        }
         .bg-image {
             position: fixed;
             top: 0;
@@ -45,6 +54,7 @@
             transform: translateX(-50%);
             z-index: 15;
             text-align: center;
+            pointer-events: none;
         }
         .digital-clock {
             backdrop-filter: blur(16px);
@@ -121,7 +131,7 @@
             border: 0.5px solid rgba(255,255,255,0.3);
         }
         .menu-icon i { font-size: 20px; color: white; }
-        .menu-icon:hover { background: rgba(80,80,100,0.8); transform: scale(1.04); }
+        .menu-icon:hover, .menu-icon:focus-visible { background: rgba(80,80,100,0.8); transform: scale(1.04); }
         .modal {
             position: fixed;
             top: 0;
@@ -188,7 +198,7 @@
             transition: 0.2s;
             font-size: 0.85rem;
         }
-        .station-item:hover { background: rgba(255,255,255,0.25); }
+        .station-item:hover, .station-item:focus-visible { background: rgba(255,255,255,0.25); transform: scale(1.02); }
         .radio-iframe {
             width: 100%;
             height: calc(100% - 40px);
@@ -245,6 +255,9 @@
             .spotify-iframe { height: 480px; }
             .lofi-status { bottom: 10px; left: 10px; font-size: 11px; padding: 5px 12px; }
         }
+        .focusable {
+            outline: none;
+        }
     </style>
 </head>
 <body>
@@ -263,20 +276,20 @@
 </div>
 
 <div class="music-player">
-    <div class="note-btn" id="noteButton">
+    <div class="note-btn focusable" id="noteButton" tabindex="0">
         <i class="fas fa-music"></i>
     </div>
     <div class="music-menu" id="musicMenu">
-        <div class="menu-icon" data-action="spotify"><i class="fab fa-spotify"></i></div>
-        <div class="menu-icon" data-action="record"><i class="fas fa-broadcast-tower"></i></div>
-        <div class="menu-icon" data-action="lofi"><i class="fas fa-headphones"></i></div>
-        <div class="menu-icon" data-action="upload"><i class="fas fa-cloud-upload-alt"></i></div>
+        <div class="menu-icon focusable" data-action="spotify" tabindex="0"><i class="fab fa-spotify"></i></div>
+        <div class="menu-icon focusable" data-action="record" tabindex="0"><i class="fas fa-broadcast-tower"></i></div>
+        <div class="menu-icon focusable" data-action="lofi" tabindex="0"><i class="fas fa-headphones"></i></div>
+        <div class="menu-icon focusable" data-action="upload" tabindex="0"><i class="fas fa-cloud-upload-alt"></i></div>
     </div>
 </div>
 
 <div id="spotifyModal" class="modal">
     <div class="modal-content large">
-        <div class="close-modal">&times;</div>
+        <div class="close-modal focusable" tabindex="0">&times;</div>
         <div class="modal-title">Spotify Web Player</div>
         <iframe class="spotify-iframe" src="https://open.spotify.com/embed/playlist/37i9dQZF1DX3Ogo9pFvBkY?utm_source=generator" allow="encrypted-media; autoplay; clipboard-write;"></iframe>
         <div style="margin-top: 12px; text-align: center;">
@@ -287,7 +300,7 @@
 
 <div id="recordModal" class="modal">
     <div class="modal-content radio">
-        <div class="close-modal">&times;</div>
+        <div class="close-modal focusable" tabindex="0">&times;</div>
         <div class="modal-title" id="radioTitle">Radio Record</div>
         <iframe id="radioIframe" class="radio-iframe" src="https://www.radiorecord.ru/station/record" allow="autoplay; encrypted-media; fullscreen"></iframe>
         <div style="margin-top: 8px; text-align: center; font-size: 0.75rem; opacity: 0.7;">
@@ -299,9 +312,9 @@
 
 <div id="uploadModal" class="modal">
     <div class="modal-content">
-        <div class="close-modal">&times;</div>
+        <div class="close-modal focusable" tabindex="0">&times;</div>
         <div class="modal-title">📂 Загрузить трек</div>
-        <label class="file-input-label" for="audioUpload">Выбрать файл</label>
+        <label class="file-input-label focusable" for="audioUpload" tabindex="0">Выбрать файл</label>
         <input type="file" id="audioUpload" accept="audio/*" style="display:none">
         <div class="volume-slider" style="display: flex;">
             <i class="fas fa-volume-down"></i>
@@ -370,19 +383,16 @@
 
         const lofiAudio = document.getElementById('lofiAudio');
         let lofiPlaying = false;
-        let ytPlayer = null;
         let useYT = false;
+        let ytPlayer = null;
         const statusDiv = document.getElementById('lofiStatus');
         const statusText = document.getElementById('lofiStatusText');
-        
         const LOFI_MP3_URL = "https://stream.recordradio.ru/lofi-256.mp3";
         
         function showLofiStatus(message, isTemporary = true) {
             statusText.innerHTML = message;
             statusDiv.classList.add('visible');
-            if (isTemporary) {
-                setTimeout(() => statusDiv.classList.remove('visible'), 4000);
-            }
+            if (isTemporary) setTimeout(() => statusDiv.classList.remove('visible'), 4000);
         }
         
         function startMp3Stream() {
@@ -393,7 +403,7 @@
                 lofiPlaying = true;
                 showLofiStatus('🎧 Lo-Fi стрим играет', true);
             }).catch(err => {
-                console.log("MP3 autoplay blocked, fallback to YouTube", err);
+                console.log("MP3 autoplay blocked, fallback to YouTube");
                 startYouTubeStream();
             });
         }
@@ -403,9 +413,7 @@
             useYT = true;
             const tag = document.createElement('script');
             tag.src = "https://www.youtube.com/iframe_api";
-            const firstScriptTag = document.getElementsByTagName('script')[0];
-            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-            
+            document.head.appendChild(tag);
             window.onYouTubeIframeAPIReady = function() {
                 const container = document.createElement('div');
                 container.style.position = 'fixed';
@@ -413,93 +421,54 @@
                 container.style.left = '-100%';
                 container.style.width = '1px';
                 container.style.height = '1px';
-                container.style.opacity = '0';
                 document.body.appendChild(container);
-                
                 ytPlayer = new YT.Player(container, {
-                    height: '1',
-                    width: '1',
+                    height: '1', width: '1',
                     videoId: 'jXAEIWcGXwE',
-                    playerVars: {
-                        'autoplay': 1,
-                        'mute': 0,
-                        'loop': 1,
-                        'playlist': 'jXAEIWcGXwE',
-                        'controls': 0,
-                        'disablekb': 1,
-                        'fs': 0
-                    },
+                    playerVars: { autoplay: 1, mute: 0, loop: 1, playlist: 'jXAEIWcGXwE', controls: 0, disablekb: 1, fs: 0 },
                     events: {
-                        'onReady': function(event) {
-                            event.target.playVideo();
-                            lofiPlaying = true;
-                            showLofiStatus('🎧 Lo-Fi стрим (YouTube) играет', true);
-                        },
-                        'onError': function() {
-                            showLofiStatus('⚠️ Не удалось запустить стрим', false);
-                        }
+                        onReady: (e) => { e.target.playVideo(); lofiPlaying = true; showLofiStatus('🎧 Lo-Fi (YouTube) играет', true); },
+                        onError: () => showLofiStatus('⚠️ Ошибка стрима', false)
                     }
                 });
             };
         }
         
+        startMp3Stream();
+        
         function toggleLofi() {
             if (useYT && ytPlayer) {
-                if (lofiPlaying) {
-                    ytPlayer.pauseVideo();
-                    lofiPlaying = false;
-                    showLofiStatus('🔇 Lo-Fi на паузе', true);
-                } else {
-                    ytPlayer.playVideo();
-                    lofiPlaying = true;
-                    showLofiStatus('🔊 Lo-Fi возобновлён', true);
-                }
+                if (lofiPlaying) { ytPlayer.pauseVideo(); lofiPlaying = false; showLofiStatus('🔇 Lo-Fi на паузе', true); }
+                else { ytPlayer.playVideo(); lofiPlaying = true; showLofiStatus('🔊 Lo-Fi играет', true); }
             } else {
-                if (lofiPlaying) {
-                    lofiAudio.pause();
-                    lofiPlaying = false;
-                    showLofiStatus('🔇 Lo-Fi на паузе', true);
-                } else {
-                    lofiAudio.play().catch(e => {
-                        if (!useYT) startYouTubeStream();
-                    });
-                    lofiPlaying = true;
-                    showLofiStatus('🔊 Lo-Fi играет', true);
-                }
+                if (lofiPlaying) { lofiAudio.pause(); lofiPlaying = false; showLofiStatus('🔇 Lo-Fi на паузе', true); }
+                else { lofiAudio.play().catch(e => { if(!useYT) startYouTubeStream(); }); lofiPlaying = true; showLofiStatus('🔊 Lo-Fi играет', true); }
             }
         }
         
-        startMp3Stream();
-        
-        const stations = [
-            "Record", "Russian Mix", "Хиты всех времен", "Сказки MC V", "На шашлыки!", "Megamix",
-            "Deep", "House", "Techno", "Trance", "Drum&Bass", "Chillout", "Lounge", "Pirate Station"
-        ];
+        const stations = ["Record","Russian Mix","Хиты всех времен","Сказки MC V","На шашлыки!","Megamix","Deep","House","Techno","Trance","Drum&Bass","Chillout","Lounge","Pirate Station"];
         function getStationUrl(stationName) {
-            const mapping = {
-                "Record": "record", "Russian Mix": "rus", "Хиты всех времен": "hit",
-                "Сказки MC V": "skazki", "На шашлыки!": "shashlyki", "Megamix": "megamix",
-                "Deep": "deep", "House": "house", "Techno": "techno", "Trance": "trance",
-                "Drum&Bass": "dnb", "Chillout": "chillout", "Lounge": "lounge", "Pirate Station": "pirate"
-            };
-            const slug = mapping[stationName] || stationName.toLowerCase().replace(/ /g, '');
-            return `https://www.radiorecord.ru/station/${slug}`;
+            const map = { "Record":"record","Russian Mix":"rus","Хиты всех времен":"hit","Сказки MC V":"skazki","На шашлыки!":"shashlyki","Megamix":"megamix","Deep":"deep","House":"house","Techno":"techno","Trance":"trance","Drum&Bass":"dnb","Chillout":"chillout","Lounge":"lounge","Pirate Station":"pirate" };
+            return `https://www.radiorecord.ru/station/${map[stationName] || stationName.toLowerCase()}`;
         }
         function buildStationList() {
             const container = document.getElementById('recordStationList');
             container.innerHTML = '';
             stations.forEach(st => {
                 const div = document.createElement('div');
-                div.className = 'station-item';
-                div.innerText = st;
-                div.addEventListener('click', () => {
-                    const url = getStationUrl(st);
-                    document.getElementById('radioIframe').src = url;
-                    document.getElementById('radioTitle').innerHTML = `Radio Record — ${st}`;
-                    if (currentAudio) stopUploadAudio();
-                });
+                div.className = 'station-item focusable';
+                div.textContent = st;
+                div.setAttribute('tabindex', '0');
+                div.addEventListener('click', () => { selectRadioStation(st); });
+                div.addEventListener('keydown', (e) => { if(e.key === 'Enter') selectRadioStation(st); });
                 container.appendChild(div);
             });
+        }
+        function selectRadioStation(st) {
+            const url = getStationUrl(st);
+            document.getElementById('radioIframe').src = url;
+            document.getElementById('radioTitle').innerHTML = `Radio Record — ${st}`;
+            if (currentAudio) stopUploadAudio();
         }
         
         let currentAudio = null;
@@ -508,109 +477,109 @@
         const uploadInput = document.getElementById('audioUpload');
         const uploadVol = document.getElementById('uploadVolume');
         const uploadStatus = document.getElementById('uploadStatus');
-        
-        function stopUploadAudio() {
-            if (currentAudio) {
-                currentAudio.pause();
-                currentAudio = null;
-            }
-            uploadStatus.innerText = 'Остановлено';
-        }
-        
+        function stopUploadAudio() { if(currentAudio){ currentAudio.pause(); currentAudio=null; } uploadStatus.innerText='Остановлено'; }
         function initUpload() {
             document.querySelector('.file-input-label').addEventListener('click', () => uploadInput.click());
             uploadInput.addEventListener('change', (e) => {
                 const file = e.target.files[0];
-                if (!file) return;
-                if (uploadedAudio) uploadedAudio.pause();
+                if(!file) return;
+                if(uploadedAudio) uploadedAudio.pause();
                 const url = URL.createObjectURL(file);
                 uploadedAudio = new Audio(url);
                 uploadedAudio.volume = parseFloat(uploadVol.value);
                 uploadedFileName = file.name;
                 uploadStatus.innerText = `✅ ${file.name}`;
-                if (currentAudio) stopUploadAudio();
-                uploadedAudio.play().then(() => {
-                    currentAudio = uploadedAudio;
-                    uploadStatus.innerText = `🎵 Играет: ${file.name}`;
-                }).catch(() => uploadStatus.innerText = 'Ошибка');
-                uploadedAudio.onended = () => {
-                    if (currentAudio === uploadedAudio) {
-                        currentAudio = null;
-                        uploadStatus.innerText = 'Трек завершён';
-                    }
-                };
+                if(currentAudio) stopUploadAudio();
+                uploadedAudio.play().then(()=>{ currentAudio=uploadedAudio; uploadStatus.innerText=`🎵 Играет: ${file.name}`; }).catch(()=>uploadStatus.innerText='Ошибка');
+                uploadedAudio.onended = () => { if(currentAudio===uploadedAudio){ currentAudio=null; uploadStatus.innerText='Трек завершён'; } };
             });
             document.getElementById('playUploadBtn').addEventListener('click', () => {
-                if (!uploadedAudio) { uploadStatus.innerText = 'Выберите файл'; return; }
-                if (currentAudio) stopUploadAudio();
-                uploadedAudio.play().then(() => {
-                    currentAudio = uploadedAudio;
-                    uploadStatus.innerText = `🎵 ${uploadedFileName || 'трек'}`;
-                }).catch(()=>uploadStatus.innerText='Ошибка');
+                if(!uploadedAudio){ uploadStatus.innerText='Выберите файл'; return; }
+                if(currentAudio) stopUploadAudio();
+                uploadedAudio.play().then(()=>{ currentAudio=uploadedAudio; uploadStatus.innerText=`🎵 ${uploadedFileName||'трек'}`; }).catch(()=>uploadStatus.innerText='Ошибка');
             });
             document.getElementById('stopUploadBtn').addEventListener('click', () => {
-                if (uploadedAudio) {
-                    uploadedAudio.pause();
-                    if (currentAudio === uploadedAudio) currentAudio = null;
-                    uploadStatus.innerText = 'Остановлен';
-                }
+                if(uploadedAudio){ uploadedAudio.pause(); if(currentAudio===uploadedAudio) currentAudio=null; uploadStatus.innerText='Остановлен'; }
             });
-            uploadVol.addEventListener('input', (e) => {
-                if (uploadedAudio) uploadedAudio.volume = parseFloat(e.target.value);
-            });
+            uploadVol.addEventListener('input', (e) => { if(uploadedAudio) uploadedAudio.volume = parseFloat(e.target.value); });
         }
         
         const noteBtn = document.getElementById('noteButton');
         const menu = document.getElementById('musicMenu');
-        const modals = {
-            spotify: document.getElementById('spotifyModal'),
-            record: document.getElementById('recordModal'),
-            upload: document.getElementById('uploadModal')
-        };
-        function closeAllModals() {
-            Object.values(modals).forEach(m => m.classList.remove('active'));
-        }
-        noteBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
+        const menuItems = Array.from(document.querySelectorAll('.menu-icon'));
+        let currentMenuIndex = -1;
+        const modals = { spotify: document.getElementById('spotifyModal'), record: document.getElementById('recordModal'), upload: document.getElementById('uploadModal') };
+        function closeAllModals() { Object.values(modals).forEach(m => m.classList.remove('active')); }
+        noteBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleMenu(); });
+        noteBtn.addEventListener('keydown', (e) => { if(e.key === 'Enter') toggleMenu(); });
+        function toggleMenu() {
             noteBtn.classList.toggle('rotated');
             menu.classList.toggle('open');
-        });
-        document.addEventListener('click', (e) => {
-            if (!menu.contains(e.target) && !noteBtn.contains(e.target)) {
-                menu.classList.remove('open');
-                noteBtn.classList.remove('rotated');
+            if(menu.classList.contains('open')) {
+                currentMenuIndex = 0;
+                if(menuItems[0]) menuItems[0].focus();
             }
+        }
+        function closeMenu() { menu.classList.remove('open'); noteBtn.classList.remove('rotated'); currentMenuIndex = -1; }
+        document.addEventListener('keydown', (e) => {
+            if(modals.spotify.classList.contains('active') || modals.record.classList.contains('active') || modals.upload.classList.contains('active')) {
+                if(e.key === 'Escape') closeAllModals();
+                return;
+            }
+            if(menu.classList.contains('open')) {
+                if(e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    currentMenuIndex = (currentMenuIndex + 1) % menuItems.length;
+                    menuItems[currentMenuIndex].focus();
+                } else if(e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    currentMenuIndex = (currentMenuIndex - 1 + menuItems.length) % menuItems.length;
+                    menuItems[currentMenuIndex].focus();
+                } else if(e.key === 'Enter') {
+                    e.preventDefault();
+                    if(menuItems[currentMenuIndex]) menuItems[currentMenuIndex].click();
+                } else if(e.key === 'Escape') {
+                    closeMenu();
+                    noteBtn.focus();
+                }
+                return;
+            }
+            if(e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                e.preventDefault();
+                if(!useYT && lofiAudio) {
+                    let vol = lofiAudio.volume;
+                    vol += (e.key === 'ArrowRight') ? 0.05 : -0.05;
+                    vol = Math.min(1, Math.max(0, vol));
+                    lofiAudio.volume = vol;
+                    showLofiStatus(`🔊 Громкость: ${Math.round(vol*100)}%`, true);
+                } else if(useYT && ytPlayer) {
+                    let vol = ytPlayer.getVolume() / 100;
+                    vol += (e.key === 'ArrowRight') ? 0.05 : -0.05;
+                    vol = Math.min(1, Math.max(0, vol));
+                    ytPlayer.setVolume(vol * 100);
+                    showLofiStatus(`🔊 Громкость: ${Math.round(vol*100)}%`, true);
+                }
+                return;
+            }
+            if(document.activeElement === noteBtn && e.key === 'Enter') toggleMenu();
         });
-        document.querySelectorAll('.menu-icon').forEach(icon => {
+        menuItems.forEach((icon, idx) => {
             icon.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const action = icon.dataset.action;
-                if (action === 'lofi') {
-                    toggleLofi();
-                    menu.classList.remove('open');
-                    noteBtn.classList.remove('rotated');
-                    return;
-                }
+                if(action === 'lofi') { toggleLofi(); closeMenu(); noteBtn.focus(); return; }
                 closeAllModals();
-                if (action === 'spotify') modals.spotify.classList.add('active');
-                else if (action === 'record') {
-                    const iframe = document.getElementById('radioIframe');
-                    if (!iframe.src.includes('radiorecord.ru')) {
-                        iframe.src = 'https://www.radiorecord.ru/station/record';
-                    }
-                    modals.record.classList.add('active');
-                }
-                else if (action === 'upload') modals.upload.classList.add('active');
-                menu.classList.remove('open');
-                noteBtn.classList.remove('rotated');
+                if(action === 'spotify') modals.spotify.classList.add('active');
+                else if(action === 'record') { modals.record.classList.add('active'); setTimeout(() => { const firstStation = document.querySelector('.station-item'); if(firstStation) firstStation.focus(); }, 100); }
+                else if(action === 'upload') modals.upload.classList.add('active');
+                closeMenu();
+                noteBtn.focus();
             });
+            icon.addEventListener('keydown', (e) => { if(e.key === 'Enter') icon.click(); });
         });
-        document.querySelectorAll('.close-modal').forEach(btn => {
-            btn.addEventListener('click', () => closeAllModals());
-        });
-        Object.values(modals).forEach(modal => {
-            modal.addEventListener('click', (e) => { if(e.target === modal) closeAllModals(); });
-        });
+        document.querySelectorAll('.close-modal').forEach(btn => { btn.addEventListener('click', () => closeAllModals()); btn.addEventListener('keydown', (e) => { if(e.key === 'Enter') closeAllModals(); }); });
+        Object.values(modals).forEach(modal => { modal.addEventListener('click', (e) => { if(e.target === modal) closeAllModals(); }); });
+        document.getElementById('recordModal').addEventListener('shown', () => { const first = document.querySelector('#recordModal .station-item'); if(first) first.focus(); });
         
         buildStationList();
         initUpload();
