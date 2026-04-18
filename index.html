@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Atmosphere — часы • Lo-Fi стрим</title>
+    <title>Футаж</title>
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.0.0-beta3/css/all.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -407,7 +407,7 @@
                 } else if (currentSrc.includes('autoplay=1')) {
                     lofiIframe.src = currentSrc.replace('autoplay=1', 'autoplay=1&mute=0');
                 } else {
-                    lofiIframe.src = "https://www.youtube.com/live/jXAEIWcGXwE?si=djsZIgkNYapDR6Mn";
+                    lofiIframe.src = "https://www.youtube.com/live/jXAEIWcGXwE?si=lwCon36MwwwaV2-g";
                 }
                 lofiMuted = false;
                 showLofiStatus('🔊 Lo-Fi звук включён', true);
@@ -417,7 +417,7 @@
                 if (currentSrc.includes('mute=0')) {
                     lofiIframe.src = currentSrc.replace('mute=0', 'mute=1');
                 } else {
-                    lofiIframe.src = "https://www.youtube.com/live/jXAEIWcGXwE?si=djsZIgkNYapDR6Mn";
+                    lofiIframe.src = "https://www.youtube.com/live/jXAEIWcGXwE?si=lwCon36MwwwaV2-g";
                 }
                 lofiMuted = true;
                 showLofiStatus('🔇 Lo-Fi звук выключен', true);
