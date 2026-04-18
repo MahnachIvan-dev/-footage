@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Atmosphere — часы • Lo-Fi стрим</title>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.0.0-beta3/css/all.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+            background: #000;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            color: white;
+        }
+        .bg-image {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            transition: opacity 1.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            opacity: 0;
+            z-index: 0;
+        }
+        .bg-image.active { opacity: 1; z-index: 2; }
+        .ambient-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.25);
+            z-index: 1;
+            pointer-events: none;
+        }
+        /* Часы (только часы и минуты) */
+        .sky-clock {
+            position: fixed;
+            top: 6%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 15;
+            text-align: center;
+        }
+        .digital-clock {
+            backdrop-filter: blur(16px);
+            border-radius: 48px;
+            padding: 8px 20px;
+        }
+        .time {
+            font-family: 'SF Mono', monospace;
+            font-weight: 500;
+            font-size: 3rem;
+            letter-spacing: 4px;
+            color: white;
+            line-height: 1.2;
+        }
+        .date {
+            font-size: 0.75rem;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+            color: rgba(255,255,255,0.85);
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+        @media (max-width: 768px) {
+            .time { font-size: 2rem; letter-spacing: 2px; }
+            .digital-clock { padding: 5px 14px; }
+            .sky-clock { top: 4%; }
+        }
+        @media (max-width: 480px) { .time { font-size: 1.6rem; } }
+        /* Музыкальный плеер */
+        .music-player {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+        }
+        .note-btn {
+            width: 44px;
+            height: 44px;
+            background: rgba(30, 30, 40, 0.6);
+            backdrop-filter: blur(20px);
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.3s;
+            border: 0.5px solid rgba(255,255,255,0.3);
+        }
+        .note-btn i { font-size: 22px; color: white; transition: transform 0.4s ease; }
+        .note-btn.rotated i { transform: rotate(180deg); }
+        .music-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: 0.2s;
+        }
+        .music-menu.open { opacity: 1; visibility: visible; transform: translateY(0); }
+        .menu-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(30, 30, 40, 0.7);
+            backdrop-filter: blur(20px);
+            border-radius: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 0.5px solid rgba(255,255,255,0.3);
+        }
+        .menu-icon i { font-size: 20px; color: white; }
+        .menu-icon:hover { background: rgba(80,80,100,0.8); transform: scale(1.04); }
+        /* Модальные окна */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(14px);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.2s;
+        }
+        .modal.active { visibility: visible; opacity: 1; }
+        .modal-content {
+            background: rgba(25, 25, 35, 0.85);
+            backdrop-filter: blur(32px);
+            border-radius: 32px;
+            width: 90%;
+            max-width: 420px;
+            padding: 18px;
+            border: 0.5px solid rgba(255,255,255,0.3);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            position: relative;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        .modal-content.large { max-width: 800px; min-height: 500px; }
+        .modal-content.radio { max-width: 1000px; width: 95%; height: 85vh; padding: 12px; }
+        .close-modal {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            font-size: 24px;
+            cursor: pointer;
+            background: rgba(0,0,0,0.4);
+            width: 28px;
+            height: 28px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        .modal-title { font-weight: 500; font-size: 1.3rem; margin-bottom: 16px; }
+        .station-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 15px 0;
+            max-height: 50vh;
+            overflow-y: auto;
+        }
+        .station-item {
+            background: rgba(255,255,255,0.12);
+            padding: 8px 14px;
+            border-radius: 40px;
+            text-align: center;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.85rem;
+        }
+        .station-item:hover { background: rgba(255,255,255,0.25); }
+        .radio-iframe {
+            width: 100%;
+            height: calc(100% - 40px);
+            border: none;
+            border-radius: 24px;
+            background: rgba(0,0,0,0.3);
+        }
+        .file-input-label {
+            background: rgba(255,255,255,0.2);
+            padding: 6px 14px;
+            border-radius: 40px;
+            display: inline-block;
+            font-size: 0.85rem;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        .spotify-iframe {
+            width: 100%;
+            height: 600px;
+            border-radius: 20px;
+            border: none;
+        }
+        .hidden-youtube {
+            position: fixed;
+            bottom: -100%;
+            left: -100%;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .volume-slider, .control-btn { display: none; }
+        .lofi-status {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 13px;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            pointer-events: none;
+            font-weight: 500;
+        }
+        .lofi-status.visible { opacity: 1; }
+        @media (max-width: 560px) {
+            .music-player { top: 12px; right: 12px; }
+            .note-btn, .menu-icon { width: 38px; height: 38px; }
+            .modal-content { max-width: 300px; }
+            .modal-content.radio { max-width: 95%; height: 80vh; }
+            .spotify-iframe { height: 480px; }
+            .lofi-status { bottom: 10px; left: 10px; font-size: 11px; padding: 5px 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Фоновые изображения (утро, день, вечер, ночь) -->
+<div id="bgMorning" class="bg-image" style="background-image: url('/Утро.png');"></div>
+<div id="bgDay" class="bg-image" style="background-image: url('/День.png');"></div>
+<div id="bgEvening" class="bg-image" style="background-image: url('/Вечер.png');"></div>
+<div id="bgNight" class="bg-image" style="background-image: url('/Ночь.png');"></div>
+<div class="ambient-overlay"></div>
+
+<!-- Часы -->
+<div class="sky-clock">
+    <div class="digital-clock">
+        <div class="time" id="liveTime">--:--</div>
+        <div class="date" id="liveDate">--</div>
+    </div>
+</div>
+
+<!-- Музыкальное меню -->
+<div class="music-player">
+    <div class="note-btn" id="noteButton">
+        <i class="fas fa-music"></i>
+    </div>
+    <div class="music-menu" id="musicMenu">
+        <div class="menu-icon" data-action="spotify"><i class="fab fa-spotify"></i></div>
+        <div class="menu-icon" data-action="record"><i class="fas fa-broadcast-tower"></i></div>
+        <div class="menu-icon" data-action="lofi"><i class="fas fa-headphones"></i></div>
+        <div class="menu-icon" data-action="upload"><i class="fas fa-cloud-upload-alt"></i></div>
+    </div>
+</div>
+
+<!-- Модалка Spotify -->
+<div id="spotifyModal" class="modal">
+    <div class="modal-content large">
+        <div class="close-modal">&times;</div>
+        <div class="modal-title">Spotify Web Player</div>
+        <iframe class="spotify-iframe" src="https://open.spotify.com/embed/playlist/37i9dQZF1DX3Ogo9pFvBkY?utm_source=generator" allow="encrypted-media; autoplay; clipboard-write;"></iframe>
+        <div style="margin-top: 12px; text-align: center;">
+            <a href="https://open.spotify.com/search/lofi%20beats" target="_blank" style="color: white; background: rgba(255,255,255,0.2); padding: 6px 14px; border-radius: 40px; text-decoration: none; font-size: 0.8rem;">🔍 Открыть поиск Spotify</a>
+        </div>
+    </div>
+</div>
+
+<!-- Модалка Radio Record -->
+<div id="recordModal" class="modal">
+    <div class="modal-content radio">
+        <div class="close-modal">&times;</div>
+        <div class="modal-title" id="radioTitle">Radio Record</div>
+        <iframe id="radioIframe" class="radio-iframe" src="https://www.radiorecord.ru/station/record" allow="autoplay; encrypted-media; fullscreen"></iframe>
+        <div style="margin-top: 8px; text-align: center; font-size: 0.75rem; opacity: 0.7;">
+            <i class="fas fa-info-circle"></i> Выберите станцию в списке ниже
+        </div>
+        <div class="station-list" id="recordStationList"></div>
+    </div>
+</div>
+
+<!-- Модалка загрузки музыки -->
+<div id="uploadModal" class="modal">
+    <div class="modal-content">
+        <div class="close-modal">&times;</div>
+        <div class="modal-title">📂 Загрузить трек</div>
+        <label class="file-input-label" for="audioUpload">Выбрать файл</label>
+        <input type="file" id="audioUpload" accept="audio/*" style="display:none">
+        <div class="volume-slider" style="display: flex;">
+            <i class="fas fa-volume-down"></i>
+            <input type="range" id="uploadVolume" min="0" max="1" step="0.01" value="0.7">
+            <i class="fas fa-volume-up"></i>
+        </div>
+        <button class="control-btn" id="playUploadBtn" style="display: inline-block;">▶ Воспроизвести</button>
+        <button class="control-btn" id="stopUploadBtn" style="display: inline-block;">⏹️ Остановить</button>
+        <div class="audio-status" id="uploadStatus">Файл не выбран</div>
+    </div>
+</div>
+
+<!-- Скрытый iframe YouTube Lo-Fi стрим (ваша ссылка) - запускается при загрузке, но без звука -->
+<iframe id="lofiStream" class="hidden-youtube" src="https://www.youtube.com/embed/jXAEIWcGXwE?autoplay=1&mute=1&loop=1&playlist=jXAEIWcGXwE&controls=0&disablekb=1" allow="autoplay; encrypted-media" frameborder="0"></iframe>
+
+<!-- Статус Lo-Fi -->
+<div id="lofiStatus" class="lofi-status">
+    <i class="fas fa-headphones"></i> <span id="lofiStatusText">🎧 Lo-Fi стрим готов. Нажмите на иконку наушников, чтобы включить звук</span>
+</div>
+
+<script>
+    (function(){
+        // ----- Фон по времени суток -----
+        const backgrounds = {
+            morning: document.getElementById('bgMorning'),
+            day: document.getElementById('bgDay'),
+            evening: document.getElementById('bgEvening'),
+            night: document.getElementById('bgNight')
+        };
+        let currentActiveBg = null;
+        function getTimePeriod(hours) {
+            if (hours >= 6 && hours < 11) return 'morning';
+            if (hours >= 11 && hours < 17) return 'day';
+            if (hours >= 17 && hours < 21) return 'evening';
+            return 'night';
+        }
+        function applyBackground(period) {
+            const target = backgrounds[period];
+            if (!target || currentActiveBg === target) return;
+            if (currentActiveBg) currentActiveBg.classList.remove('active');
+            target.classList.add('active');
+            currentActiveBg = target;
+        }
+        function updateBackgroundByTime() {
+            applyBackground(getTimePeriod(new Date().getHours()));
+        }
+        updateBackgroundByTime();
+        setInterval(updateBackgroundByTime, 60000);
+
+        // ----- Часы (часы и минуты) -----
+        const timeEl = document.getElementById('liveTime');
+        const dateEl = document.getElementById('liveDate');
+        function updateClock(){
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            timeEl.textContent = `${hours}:${minutes}`;
+            const options = { weekday: 'long', day: 'numeric', month: 'long' };
+            let dateStr = now.toLocaleDateString('ru-RU', options);
+            dateEl.textContent = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+        }
+        updateClock();
+        setInterval(updateClock, 60000);
+        setInterval(() => {
+            const now = new Date();
+            const currentMinutes = timeEl.textContent.split(':')[1];
+            const newMinutes = now.getMinutes().toString().padStart(2, '0');
+            if (currentMinutes !== newMinutes) updateClock();
+        }, 1000);
+
+        // ----- Lo-Fi управление -----
+        const lofiIframe = document.getElementById('lofiStream');
+        let lofiMuted = true;
+        const statusDiv = document.getElementById('lofiStatus');
+        const statusText = document.getElementById('lofiStatusText');
+        
+        function showLofiStatus(message, isTemporary = true) {
+            statusText.innerHTML = message;
+            statusDiv.classList.add('visible');
+            if (isTemporary) {
+                setTimeout(() => statusDiv.classList.remove('visible'), 4000);
+            }
+        }
+        
+        // Показываем приветственное сообщение при загрузке
+        
+        
+        function toggleLofiSound() {
+            if (lofiMuted) {
+                // Включаем звук: меняем src на unmute
+                const currentSrc = lofiIframe.src;
+                if (currentSrc.includes('mute=1')) {
+                    lofiIframe.src = currentSrc.replace('mute=1', 'mute=0');
+                } else if (currentSrc.includes('autoplay=1')) {
+                    lofiIframe.src = currentSrc.replace('autoplay=1', 'autoplay=1&mute=0');
+                } else {
+                    lofiIframe.src = "https://www.youtube.com/live/jXAEIWcGXwE?si=djsZIgkNYapDR6Mn";
+                }
+                lofiMuted = false;
+                showLofiStatus('🔊 Lo-Fi звук включён', true);
+            } else {
+                // Выключаем звук
+                const currentSrc = lofiIframe.src;
+                if (currentSrc.includes('mute=0')) {
+                    lofiIframe.src = currentSrc.replace('mute=0', 'mute=1');
+                } else {
+                    lofiIframe.src = "https://www.youtube.com/live/jXAEIWcGXwE?si=djsZIgkNYapDR6Mn";
+                }
+                lofiMuted = true;
+                showLofiStatus('🔇 Lo-Fi звук выключен', true);
+            }
+        }
+        
+        // ----- Radio Record -----
+        const stations = [
+            "Record", "Russian Mix", "Хиты всех времен", "Сказки MC V", "На шашлыки!", "Megamix",
+            "Deep", "House", "Techno", "Trance", "Drum&Bass", "Chillout", "Lounge", "Pirate Station"
+        ];
+        function getStationUrl(stationName) {
+            const mapping = {
+                "Record": "record", "Russian Mix": "rus", "Хиты всех времен": "hit",
+                "Сказки MC V": "skazki", "На шашлыки!": "shashlyki", "Megamix": "megamix",
+                "Deep": "deep", "House": "house", "Techno": "techno", "Trance": "trance",
+                "Drum&Bass": "dnb", "Chillout": "chillout", "Lounge": "lounge", "Pirate Station": "pirate"
+            };
+            const slug = mapping[stationName] || stationName.toLowerCase().replace(/ /g, '');
+            return `https://www.radiorecord.ru/station/${slug}`;
+        }
+        function buildStationList() {
+            const container = document.getElementById('recordStationList');
+            container.innerHTML = '';
+            stations.forEach(st => {
+                const div = document.createElement('div');
+                div.className = 'station-item';
+                div.innerText = st;
+                div.addEventListener('click', () => {
+                    const url = getStationUrl(st);
+                    document.getElementById('radioIframe').src = url;
+                    document.getElementById('radioTitle').innerHTML = `Radio Record — ${st}`;
+                    if (currentAudio) stopUploadAudio();
+                });
+                container.appendChild(div);
+            });
+        }
+        
+        // ----- Загрузка музыки -----
+        let currentAudio = null;
+        let uploadedAudio = null;
+        let uploadedFileName = '';
+        const uploadInput = document.getElementById('audioUpload');
+        const uploadVol = document.getElementById('uploadVolume');
+        const uploadStatus = document.getElementById('uploadStatus');
+        
+        function stopUploadAudio() {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            uploadStatus.innerText = 'Остановлено';
+        }
+        
+        function initUpload() {
+            document.querySelector('.file-input-label').addEventListener('click', () => uploadInput.click());
+            uploadInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (uploadedAudio) uploadedAudio.pause();
+                const url = URL.createObjectURL(file);
+                uploadedAudio = new Audio(url);
+                uploadedAudio.volume = parseFloat(uploadVol.value);
+                uploadedFileName = file.name;
+                uploadStatus.innerText = `✅ ${file.name}`;
+                if (currentAudio) stopUploadAudio();
+                uploadedAudio.play().then(() => {
+                    currentAudio = uploadedAudio;
+                    uploadStatus.innerText = `🎵 Играет: ${file.name}`;
+                }).catch(() => uploadStatus.innerText = 'Ошибка');
+                uploadedAudio.onended = () => {
+                    if (currentAudio === uploadedAudio) {
+                        currentAudio = null;
+                        uploadStatus.innerText = 'Трек завершён';
+                    }
+                };
+            });
+            document.getElementById('playUploadBtn').addEventListener('click', () => {
+                if (!uploadedAudio) { uploadStatus.innerText = 'Выберите файл'; return; }
+                if (currentAudio) stopUploadAudio();
+                uploadedAudio.play().then(() => {
+                    currentAudio = uploadedAudio;
+                    uploadStatus.innerText = `🎵 ${uploadedFileName || 'трек'}`;
+                }).catch(()=>uploadStatus.innerText='Ошибка');
+            });
+            document.getElementById('stopUploadBtn').addEventListener('click', () => {
+                if (uploadedAudio) {
+                    uploadedAudio.pause();
+                    if (currentAudio === uploadedAudio) currentAudio = null;
+                    uploadStatus.innerText = 'Остановлен';
+                }
+            });
+            uploadVol.addEventListener('input', (e) => {
+                if (uploadedAudio) uploadedAudio.volume = parseFloat(e.target.value);
+            });
+        }
+        
+        // ----- UI плеера -----
+        const noteBtn = document.getElementById('noteButton');
+        const menu = document.getElementById('musicMenu');
+        const modals = {
+            spotify: document.getElementById('spotifyModal'),
+            record: document.getElementById('recordModal'),
+            upload: document.getElementById('uploadModal')
+        };
+        function closeAllModals() {
+            Object.values(modals).forEach(m => m.classList.remove('active'));
+        }
+        noteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            noteBtn.classList.toggle('rotated');
+            menu.classList.toggle('open');
+        });
+        document.addEventListener('click', (e) => {
+            if (!menu.contains(e.target) && !noteBtn.contains(e.target)) {
+                menu.classList.remove('open');
+                noteBtn.classList.remove('rotated');
+            }
+        });
+        document.querySelectorAll('.menu-icon').forEach(icon => {
+            icon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const action = icon.dataset.action;
+                if (action === 'lofi') {
+                    toggleLofiSound();
+                    menu.classList.remove('open');
+                    noteBtn.classList.remove('rotated');
+                    return;
+                }
+                closeAllModals();
+                if (action === 'spotify') modals.spotify.classList.add('active');
+                else if (action === 'record') {
+                    const iframe = document.getElementById('radioIframe');
+                    if (!iframe.src.includes('radiorecord.ru')) {
+                        iframe.src = 'https://www.radiorecord.ru/station/record';
+                    }
+                    modals.record.classList.add('active');
+                }
+                else if (action === 'upload') modals.upload.classList.add('active');
+                menu.classList.remove('open');
+                noteBtn.classList.remove('rotated');
+            });
+        });
+        document.querySelectorAll('.close-modal').forEach(btn => {
+            btn.addEventListener('click', () => closeAllModals());
+        });
+        Object.values(modals).forEach(modal => {
+            modal.addEventListener('click', (e) => { if(e.target === modal) closeAllModals(); });
+        });
+        
+        // Запуск
+        buildStationList();
+        initUpload();
+        // Lo-Fi стрим уже загружен с muted, пользователь может включить звук кнопкой
+    })();
+</script>
+</body>
+</html>
